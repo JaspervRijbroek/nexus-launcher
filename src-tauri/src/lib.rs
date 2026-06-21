@@ -22,6 +22,17 @@ fn get_games_path(app: &AppHandle) -> PathBuf {
     data_dir.join("games.json")
 }
 
+fn load_games_from_path(path: &PathBuf) -> Vec<Game> {
+    if path.exists() {
+        fs::read_to_string(path)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok())
+            .unwrap_or_default()
+    } else {
+        vec![]
+    }
+}
+
 #[tauri::command]
 fn load_games(app: AppHandle) -> Result<Vec<Game>, String> {
     let path = get_games_path(&app);
@@ -58,16 +69,50 @@ fn launch_game(game_path: String, trainer_path: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Returns the full command string to use when adding a game as a non-Steam shortcut.
+/// The returned string can be used directly as the Steam "Target" field.
+#[tauri::command]
+fn get_steam_launch_command(game_id: String) -> Result<String, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    Ok(format!("\"{}\" --launch {}", exe.display(), game_id))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            let args: Vec<String> = std::env::args().collect();
+
+            // Check for `--launch <game-id>` argument (e.g. when triggered from a Steam shortcut)
+            if let Some(pos) = args.iter().position(|a| a == "--launch") {
+                if let Some(game_id) = args.get(pos + 1) {
+                    let games_path = get_games_path(&app.handle());
+                    let games = load_games_from_path(&games_path);
+                    if let Some(game) = games.iter().find(|g| g.id == *game_id) {
+                        let _ = Command::new(&game.game_path).spawn();
+                        let _ = Command::new(&game.trainer_path).spawn();
+                    }
+                }
+                // Exit without showing the window, regardless of whether the game was found.
+                app.handle().exit(0);
+                return Ok(());
+            }
+
+            // Normal startup: show the main window.
+            if let Some(window) = app.get_webview_window("main") {
+                window.show().ok();
+            }
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             load_games,
             save_games,
             generate_id,
             launch_game,
+            get_steam_launch_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
