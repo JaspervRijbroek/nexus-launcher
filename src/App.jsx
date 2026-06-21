@@ -1,6 +1,29 @@
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
 function App() {
+  const [runningGameIds, setRunningGameIds] = useState([]);
+
+  useEffect(() => {
+    async function checkRunning() {
+      try {
+        const ids = await invoke("get_running_games");
+        setRunningGameIds(ids);
+      } catch (_) {
+        // ignore errors (e.g. running in a browser without Tauri)
+      }
+    }
+
+    checkRunning();
+    const interval = setInterval(checkRunning, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  function isRunning(gameId) {
+    return runningGameIds.includes(gameId);
+  }
+
   return (
     <div className="min-h-screen antialiased bg-black p-0 sm:p-4 flex justify-center items-center">
       <div className="w-full h-screen sm:h-[800px] max-w-[420px] bg-[#0F172A] sm:rounded-xl border-x sm:border border-outline-variant flex flex-col relative overflow-hidden shadow-2xl">
