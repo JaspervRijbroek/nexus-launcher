@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "nexus-launcher-app",
+  "productName": "Nexus Launcher",
   "version": "0.1.0",
-  "identifier": "com.runner.nexus-launcher-app",
+  "identifier": "com.nexus.launcher",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "nexus-launcher-app",
-        "width": 800,
-        "height": 600
+        "title": "Nexus Launcher",
+        "width": 900,
+        "height": 650
       }
     ],
     "security": {
