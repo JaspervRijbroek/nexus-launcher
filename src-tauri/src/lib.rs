@@ -1,3 +1,4 @@
+use enigo::{Direction, Enigo, Key, Keyboard, Settings};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -15,6 +16,8 @@ pub struct Game {
     pub name: String,
     pub game_path: String,
     pub trainer_path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trainer_shortcuts: Option<String>,
 }
 
 fn get_games_path(app: &AppHandle) -> PathBuf {
@@ -60,26 +63,110 @@ fn generate_id() -> String {
     Uuid::new_v4().to_string()
 }
 
+fn map_key(key: &str) -> Key {
+    match key {
+        "f1" => Key::F1,
+        "f2" => Key::F2,
+        "f3" => Key::F3,
+        "f4" => Key::F4,
+        "f5" => Key::F5,
+        "f6" => Key::F6,
+        "f7" => Key::F7,
+        "f8" => Key::F8,
+        "f9" => Key::F9,
+        "f10" => Key::F10,
+        "f11" => Key::F11,
+        "f12" => Key::F12,
+        "space" => Key::Space,
+        "enter" | "return" => Key::Return,
+        "escape" | "esc" => Key::Escape,
+        "tab" => Key::Tab,
+        "backspace" => Key::Backspace,
+        "delete" | "del" => Key::Delete,
+        "insert" | "ins" => Key::Insert,
+        "home" => Key::Home,
+        "end" => Key::End,
+        "pageup" => Key::PageUp,
+        "pagedown" => Key::PageDown,
+        "up" => Key::UpArrow,
+        "down" => Key::DownArrow,
+        "left" => Key::LeftArrow,
+        "right" => Key::RightArrow,
+        s => Key::Unicode(s.chars().next().unwrap_or(' ')),
+    }
+}
+
+/// Parses a comma-separated list of keyboard shortcuts (e.g. "alt+f11, ctrl+l, ctrl+f1")
+/// and sends each combination as simulated key events.
+fn send_shortcuts(shortcuts: &str) {
+    let Ok(mut enigo) = Enigo::new(&Settings::default()) else {
+        return;
+    };
+
+    for shortcut in shortcuts.split(',') {
+        let shortcut = shortcut.trim().to_lowercase();
+        if shortcut.is_empty() {
+            continue;
+        }
+
+        let parts: Vec<&str> = shortcut.split('+').collect();
+        let mut modifiers: Vec<Key> = Vec::new();
+        let mut main_key: Option<Key> = None;
+
+        for part in &parts {
+            let part = part.trim();
+            match part {
+                "ctrl" | "control" => modifiers.push(Key::Control),
+                "alt" => modifiers.push(Key::Alt),
+                "shift" => modifiers.push(Key::Shift),
+                "win" | "meta" | "super" => modifiers.push(Key::Meta),
+                other => main_key = Some(map_key(other)),
+            }
+        }
+
+        if let Some(key) = main_key {
+            for &modifier in &modifiers {
+                let _ = enigo.key(modifier, Direction::Press);
+            }
+            let _ = enigo.key(key, Direction::Click);
+            for &modifier in modifiers.iter().rev() {
+                let _ = enigo.key(modifier, Direction::Release);
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+    }
+}
+
 #[tauri::command]
 fn launch_game(
     game_id: String,
     game_path: String,
     trainer_path: String,
+    trainer_shortcuts: Option<String>,
     running_games: State<RunningGames>,
 ) -> Result<(), String> {
-    let child = Command::new(&game_path)
-        .spawn()
-        .map_err(|e| format!("Failed to launch game: {e}"))?;
-
     Command::new(&trainer_path)
         .spawn()
         .map_err(|e| format!("Failed to launch trainer: {e}"))?;
+
+    let child = Command::new(&game_path)
+        .spawn()
+        .map_err(|e| format!("Failed to launch game: {e}"))?;
 
     running_games
         .0
         .lock()
         .map_err(|e| e.to_string())?
         .insert(game_id, child);
+
+    if let Some(shortcuts) = trainer_shortcuts {
+        if !shortcuts.trim().is_empty() {
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(60));
+                send_shortcuts(&shortcuts);
+            });
+        }
+    }
 
     Ok(())
 }
@@ -114,8 +201,15 @@ pub fn run() {
                     let games_path = get_games_path(&app.handle());
                     let games = load_games_from_path(&games_path);
                     if let Some(game) = games.iter().find(|g| g.id == *game_id) {
-                        let _ = Command::new(&game.game_path).spawn();
                         let _ = Command::new(&game.trainer_path).spawn();
+                        let _ = Command::new(&game.game_path).spawn();
+                        if let Some(ref shortcuts) = game.trainer_shortcuts {
+                            if !shortcuts.trim().is_empty() {
+                                let shortcuts = shortcuts.clone();
+                                std::thread::sleep(std::time::Duration::from_secs(60));
+                                send_shortcuts(&shortcuts);
+                            }
+                        }
                     }
                 }
                 // Exit without showing the window, regardless of whether the game was found.
