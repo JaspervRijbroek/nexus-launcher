@@ -4,11 +4,11 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Child, Command};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, State};
 use uuid::Uuid;
 
-pub struct RunningGames(pub Mutex<HashMap<String, Child>>);
+pub struct RunningGames(pub Mutex<HashMap<String, Arc<Mutex<Child>>>>);
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Game {
@@ -145,19 +145,38 @@ fn launch_game(
     trainer_shortcuts: Option<String>,
     running_games: State<RunningGames>,
 ) -> Result<(), String> {
-    Command::new(&trainer_path)
+    let mut trainer_child = Command::new(&trainer_path)
         .spawn()
         .map_err(|e| format!("Failed to launch trainer: {e}"))?;
 
-    let child = Command::new(&game_path)
+    let game_child = Command::new(&game_path)
         .spawn()
         .map_err(|e| format!("Failed to launch game: {e}"))?;
+
+    let game_child = Arc::new(Mutex::new(game_child));
 
     running_games
         .0
         .lock()
         .map_err(|e| e.to_string())?
-        .insert(game_id, child);
+        .insert(game_id, game_child.clone());
+
+    // Watch the game process; kill the trainer when the game exits.
+    std::thread::spawn(move || loop {
+        std::thread::sleep(std::time::Duration::from_secs(5));
+        let mut game = match game_child.lock() {
+            Ok(g) => g,
+            Err(_) => break,
+        };
+        match game.try_wait() {
+            Ok(Some(_)) => {
+                let _ = trainer_child.kill();
+                break;
+            }
+            Ok(None) => {} // Game still running
+            Err(_) => break,
+        }
+    });
 
     if let Some(shortcuts) = trainer_shortcuts {
         if !shortcuts.trim().is_empty() {
@@ -174,7 +193,12 @@ fn launch_game(
 #[tauri::command]
 fn get_running_games(running_games: State<RunningGames>) -> Result<Vec<String>, String> {
     let mut map = running_games.0.lock().map_err(|e| e.to_string())?;
-    map.retain(|_, child| child.try_wait().map(|s| s.is_none()).unwrap_or(false));
+    map.retain(|_, child| {
+        child
+            .lock()
+            .map(|mut c| c.try_wait().map(|s| s.is_none()).unwrap_or(false))
+            .unwrap_or(false)
+    });
     Ok(map.keys().cloned().collect())
 }
 
