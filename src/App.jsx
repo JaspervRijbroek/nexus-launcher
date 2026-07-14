@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import AppHeader from "./components/AppHeader";
 import BottomNav from "./components/BottomNav";
 import GameList from "./components/GameList";
@@ -12,10 +11,10 @@ function App() {
   useEffect(() => {
     async function checkRunning() {
       try {
-        const ids = await invoke("get_running_games");
+        const ids = await window.electronAPI.getRunningGames();
         setRunningGameIds(ids);
       } catch (_) {
-        // ignore errors (e.g. running in a browser without Tauri)
+        // ignore errors (e.g. running in a browser without Electron)
       }
     }
 

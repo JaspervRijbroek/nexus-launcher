@@ -3,22 +3,54 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "vite:dev": "vite",
+    "electron:dev": "wait-on http://localhost:5173 && electron .",
     "build": "vite build",
+    "dist": "vite build && electron-builder",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "postinstall": "electron-rebuild"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-dialog": "^2.7.1",
-    "@tauri-apps/plugin-opener": "^2",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "robotjs": "^0.7.1",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2",
+    "@electron/rebuild": "^4.2.0",
     "@vitejs/plugin-react": "^4.6.0",
-    "vite": "^7.0.4"
+    "concurrently": "^9.1.2",
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.1",
+    "vite": "^7.3.6",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.nexus.launcher",
+    "productName": "Nexus Launcher",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "icon": "src-tauri/icons/icon.ico"
+    },
+    "linux": {
+      "icon": "src-tauri/icons/128x128.png"
+    },
+    "mac": {
+      "icon": "src-tauri/icons/icon.icns"
+    }
+  },
+  "overrides": {
+    "esbuild": "^0.28.1"
   }
 }
