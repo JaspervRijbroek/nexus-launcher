@@ -1,4 +1,4 @@
-function DownloadingGameCard() {
+function DownloadingGameCard({ shortcutKey, actionRef }) {
   return (
     <div className="group flex gap-3 items-center py-3 px-4 border-b border-outline-variant hover:bg-surface-container-low transition-colors cursor-pointer">
       <div className="w-11 h-16 bg-[#1E293B] border border-[#334155] rounded shrink-0 overflow-hidden group-hover:border-primary transition-colors relative shadow-sm">
@@ -25,13 +25,19 @@ function DownloadingGameCard() {
           </div>
         </div>
       </div>
-      <div className="shrink-0 pl-2">
+      <div className="shrink-0 pl-2 flex flex-col items-center gap-1">
         <button
+          ref={actionRef}
           className="bg-transparent border border-outline hover:border-on-surface text-on-surface font-label-mono text-[10px] px-3 py-1.5 rounded w-[60px] transition-colors text-center"
           type="button"
         >
           PAUSE
         </button>
+        {shortcutKey && (
+          <span className="font-label-mono text-[8px] text-on-surface-variant border border-outline-variant rounded px-1 leading-4 opacity-60">
+            {shortcutKey}
+          </span>
+        )}
       </div>
     </div>
   );
