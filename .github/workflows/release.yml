@@ -38,21 +38,13 @@ jobs:
         with:
           ref: ${{ needs.version.outputs.new_tag }}
 
-      - name: Update version in tauri.conf.json
+      - name: Update version in package.json
         shell: pwsh
         run: |
           $version = "${{ needs.version.outputs.new_version }}"
-          $json = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          $json = Get-Content package.json -Raw | ConvertFrom-Json
           $json.version = $version
-          $json | ConvertTo-Json -Depth 10 | Set-Content src-tauri/tauri.conf.json
-
-      - name: Update version in Cargo.toml
-        shell: pwsh
-        run: |
-          $version = "${{ needs.version.outputs.new_version }}"
-          $content = Get-Content src-tauri/Cargo.toml
-          $content = $content -replace '^version = ".*"', "version = `"$version`""
-          Set-Content src-tauri/Cargo.toml $content
+          $json | ConvertTo-Json -Depth 10 | Set-Content package.json
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -60,35 +52,21 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-msvc
-
-      - name: Cache Rust dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            src-tauri/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: Install frontend dependencies
+      - name: Install dependencies
         run: npm ci
 
-      - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build frontend
+        run: npm run build
+
+      - name: Package Electron app
+        run: npx electron-builder --win --x64
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          tagName: ${{ needs.version.outputs.new_tag }}
-          releaseName: 'Nexus Launcher ${{ needs.version.outputs.new_tag }}'
-          releaseBody: ${{ needs.version.outputs.changelog }}
-          releaseDraft: false
+          tag_name: ${{ needs.version.outputs.new_tag }}
+          name: 'Nexus Launcher ${{ needs.version.outputs.new_tag }}'
+          body: ${{ needs.version.outputs.changelog }}
+          draft: false
           prerelease: false
-          args: --target x86_64-pc-windows-msvc
+          files: release/*.exe

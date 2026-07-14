@@ -41,13 +41,13 @@
       "node_modules/**/*"
     ],
     "win": {
-      "icon": "src-tauri/icons/icon.ico"
+      "icon": "build/icons/icon.ico"
     },
     "linux": {
-      "icon": "src-tauri/icons/128x128.png"
+      "icon": "build/icons/128x128.png"
     },
     "mac": {
-      "icon": "src-tauri/icons/icon.icns"
+      "icon": "build/icons/icon.icns"
     }
   },
   "overrides": {
