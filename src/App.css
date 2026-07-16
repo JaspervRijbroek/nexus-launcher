@@ -1,9 +1,6 @@
 body {
-  background-color: #000000;
+  background-color: #0b1326;
   color: #dae2fd;
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
 ::-webkit-scrollbar {

@@ -1,4 +1,4 @@
-function AppHeader() {
+function AppHeader({ onAddGame }) {
   return (
     <header className="bg-surface-container/60 backdrop-blur-xl w-full border-b border-outline-variant flex justify-between items-center px-4 h-14 shrink-0 z-40">
       <div className="flex items-center gap-2">
@@ -10,6 +10,14 @@ function AppHeader() {
       <div className="flex items-center gap-3">
         <button className="text-on-surface-variant hover:text-primary transition-colors flex items-center" type="button">
           <span className="material-symbols-outlined text-[20px]">search</span>
+        </button>
+        <button
+          className="text-on-surface-variant hover:text-primary transition-colors flex items-center"
+          onClick={onAddGame}
+          title="Add game"
+          type="button"
+        >
+          <span className="material-symbols-outlined text-[20px]">add</span>
         </button>
       </div>
     </header>

@@ -83,7 +83,6 @@ fn map_key(key: &str) -> Key {
         "tab" => Key::Tab,
         "backspace" => Key::Backspace,
         "delete" | "del" => Key::Delete,
-        "insert" | "ins" => Key::Insert,
         "home" => Key::Home,
         "end" => Key::End,
         "pageup" => Key::PageUp,
